@@ -69,3 +69,22 @@ python3 scripts/deploy_app_bundle.py --check
 This compares the installed executable's mtime against the newest mtime under
 `Sources/` and `.build/release/computer-use-mcp`, and exits nonzero when the
 installed bundle is older than the current source/build.
+
+## Keeping the GUI-owned daemon available
+
+Open `Computer Use MCP.app` without arguments to start its persistent host.
+The host keeps a connection to the shared engine daemon and reconnects if that
+daemon exits. This lets the app bundle, rather than the MCP client that starts
+an on-demand daemon, remain the responsible host for Accessibility and Screen
+Recording access.
+
+For startup after reboot, add `~/Applications/Computer Use MCP.app` under
+System Settings → General → Login Items → Open at Login. Grant the app itself
+under Privacy & Security → Accessibility and Screen & System Audio Recording.
+If a daemon from another host is already running, stop it before starting this
+host; otherwise the app attaches to the existing daemon and does not change its
+TCC attribution.
+
+The local bundle is ad-hoc signed. Permissions remain attached across reboots
+while the installed bundle is unchanged, but rebuilding it changes its signing
+identity and requires granting permissions again.

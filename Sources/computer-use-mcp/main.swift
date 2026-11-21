@@ -17,13 +17,17 @@ configureAXMessagingTimeout()
 // terminate the server with SIGPIPE.
 signal(SIGPIPE, SIG_IGN)
 
-let arguments = Array(CommandLine.arguments.dropFirst())
+let arguments = argumentsWithoutLaunchServicesProcessNumber(
+    Array(CommandLine.arguments.dropFirst())
+)
 
 switch arguments.first {
 case "serve":
     await runServe()
 case "daemon":
     await runDaemon()
+case "host":
+    await runHost()
 case "call":
     await runCall(Array(arguments.dropFirst()))
 case "doctor":
@@ -35,7 +39,11 @@ case "overlay":
 case "version", "--version", "-v":
     print("computer-use-mcp \(version)")
 case "help", "--help", "-h", .none:
-    printUsage()
+    if shouldRunHostWithoutArguments(arguments: arguments, bundleURL: Bundle.main.bundleURL) {
+        await runHost()
+    } else {
+        printUsage()
+    }
 case .some(let unknown):
     FileHandle.standardError.write(Data("Unknown command: \(unknown)\n\n".utf8))
     printUsage()
@@ -51,6 +59,7 @@ func printUsage() {
         USAGE:
           computer-use-mcp serve                 Run the MCP server over stdio
           computer-use-mcp daemon                Run the shared engine daemon (spawned on demand)
+          computer-use-mcp host                  Keep the shared engine daemon alive for a GUI app host
           computer-use-mcp call <tool> [<json>]  Invoke a single tool (dev harness)
           computer-use-mcp doctor [--prompt]     Check required macOS permissions
           computer-use-mcp health_report [--json] [--probe-capture]

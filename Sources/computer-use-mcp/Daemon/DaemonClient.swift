@@ -20,6 +20,10 @@ actor DaemonClient {
     /// Keeps a spawned daemon Process alive so Foundation reaps it on exit.
     private var spawnedDaemon: Process?
 
+    func keepAlive() async throws {
+        try await ensureConnected()
+    }
+
     func call(tool: String, arguments: [String: Value]) async throws -> CallTool.Result {
         let operationID = UUID().uuidString
         try await ensureConnected()
