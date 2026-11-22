@@ -8,10 +8,17 @@ enum ClickDeliveryRoute: Equatable {
 }
 
 func clickDeliveryRoute(
-    hasSelectableElement: Bool, hasPressableElement: Bool
+    hasSelectableElement: Bool, hasPressableElement: Bool, allowGlobalCursor: Bool = false
 ) -> ClickDeliveryRoute {
+    if allowGlobalCursor { return .synthetic }
     if hasSelectableElement { return .axSelection }
     return hasPressableElement ? .axPress : .synthetic
+}
+
+func clickFallbackReasons(
+    deliveryReasons: [FallbackReason], allowGlobalCursor: Bool
+) -> [FallbackReason] {
+    (allowGlobalCursor ? [] : [.axActionUnsupported]) + deliveryReasons
 }
 
 /// Execute exactly the route selected from preflight capabilities. Keeping the

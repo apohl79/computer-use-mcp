@@ -13,6 +13,19 @@ import Foundation
             hasSelectableElement: false, hasPressableElement: false) == .synthetic)
     }
 
+    @Test func globalCursorPreferenceForcesRealMouseDelivery() {
+        #expect(clickDeliveryRoute(
+            hasSelectableElement: true,
+            hasPressableElement: true,
+            allowGlobalCursor: true) == .synthetic)
+        #expect(clickFallbackReasons(
+            deliveryReasons: [.globalCursorRequested],
+            allowGlobalCursor: true) == [.globalCursorRequested])
+        #expect(clickFallbackReasons(
+            deliveryReasons: [.eventBridgeFailed],
+            allowGlobalCursor: false) == [.axActionUnsupported, .eventBridgeFailed])
+    }
+
     @Test func selectableClickRolesAreNarrow() {
         #expect(isSelectableClickRole("AXRow"))
         #expect(isSelectableClickRole("AXCell"))

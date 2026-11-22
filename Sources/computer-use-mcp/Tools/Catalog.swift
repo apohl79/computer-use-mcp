@@ -20,9 +20,9 @@ private let elementIDParam = stringParam(
 )
 
 private let allowGlobalCursorParam = boolParam(
-    "Escape hatch (default false). When true, uses the real system cursor to deliver "
-        + "the action — this MOVES the pointer and may change focus. Only set it if "
-        + "background delivery did not land for a stubborn app. Requires allow_focus_change:true."
+    "Escape hatch (default false). When true, sends real system mouse events and leaves "
+        + "the pointer at the target. This moves the pointer and may change focus. Only set it "
+        + "if background delivery did not land for a stubborn app. Requires allow_focus_change:true."
 )
 
 private let allowFocusChangeParam = boolParam(

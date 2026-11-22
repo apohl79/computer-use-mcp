@@ -7,7 +7,7 @@
 //   Tier 2  per-window NSEvent → CGEventPostToPid  — routed to a specific window
 //   Tier 2.5 SLEventPostToPid (SkyLight SPI) — FLAGGED prototype, default off
 //   Tier 3  CGEventPostToPid (no window affinity)  — delivered to the pid
-//   Tier 4  global cursor (CGWarp + session tap)   — GUARDED, opt-in, restores cursor
+//   Tier 4  global cursor (CGWarp + HID tap)        — GUARDED, opt-in, leaves cursor at target
 //
 // Tiers 2–3 use CGEventPostToPid, which delivers to a process without
 // foreground activation and never touches the system cursor. It is documented
@@ -192,7 +192,7 @@ func deliverClick(
 ) throws -> DeliveryOutcome {
     try checkCancellationBeforeDelivery()
     if context.allowGlobalCursor {
-        let tier = deliverClickGlobal(at: point, button: button, clickCount: clickCount, context: context)
+        let tier = try deliverClickGlobal(at: point, button: button, clickCount: clickCount)
         return DeliveryOutcome(tier: tier, fallbackReasons: [.globalCursorRequested])
     }
 
@@ -323,26 +323,6 @@ private extension NSEvent.EventType {
         self == .leftMouseDown || self == .rightMouseDown || self == .otherMouseDown
             || self == .leftMouseDragged
     }
-}
-
-/// Tier 4: guarded global cursor. Moves the real cursor, posts to the session
-/// tap, then restores the cursor. Only reached on explicit opt-in.
-private func deliverClickGlobal(
-    at point: CGPoint, button: MouseButtonKind, clickCount: Int, context: DeliveryContext
-) -> InputTier {
-    let saved = CGEvent(source: nil)?.location
-    CGWarpMouseCursorPosition(point)
-    let source = CGEventSource(stateID: .combinedSessionState)
-    for clickState in 1...clickCount {
-        let down = CGEvent(mouseEventSource: source, mouseType: button.downType, mouseCursorPosition: point, mouseButton: button.cgButton)
-        down?.setIntegerValueField(.mouseEventClickState, value: Int64(clickState))
-        down?.post(tap: .cgSessionEventTap)
-        let up = CGEvent(mouseEventSource: source, mouseType: button.upType, mouseCursorPosition: point, mouseButton: button.cgButton)
-        up?.setIntegerValueField(.mouseEventClickState, value: Int64(clickState))
-        up?.post(tap: .cgSessionEventTap)
-    }
-    if let saved { CGWarpMouseCursorPosition(saved) }
-    return .globalCursor
 }
 
 /// Deliver scroll wheel events at a global point. Distributes the delta across

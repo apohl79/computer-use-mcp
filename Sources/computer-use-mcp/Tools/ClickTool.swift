@@ -20,6 +20,11 @@ func clickImpl(_ args: [String: Value]) async throws -> CallTool.Result {
         cursorMovementAllowed: allowGlobalCursor
     )
     let target = try await resolvePointTarget(args, app: app, allowGlobalCursor: allowGlobalCursor)
+    if allowGlobalCursor {
+        try requireGlobalClickTarget(
+            point: target.requirePoint(), targetPID: app.pid,
+            targetWindowID: target.deliveryContext.windowNumber ?? windowID(for: target.windowElement))
+    }
     try SafetyPolicy.checkClick(label: clickTargetLabel(target), app: app, confirmed: confirmed)
 
     // Capture target-local state before deriving intent so a single checkbox
@@ -91,7 +96,7 @@ func clickImpl(_ args: [String: Value]) async throws -> CallTool.Result {
     }
 
     // The click landed: ripple the overlay at the point so the user sees it.
-    if let point = target.point {
+    if let point = target.point, !target.deliveryContext.allowGlobalCursor {
         await AgentCursor.shared.pulse(at: point, targetWindow: target.deliveryContext.windowNumber)
     }
 
@@ -170,7 +175,7 @@ private struct InputActionOutcome {
 
 private func leftClick(_ target: PointTarget, clickCount: Int) async throws -> InputActionOutcome {
     // Animate the (cosmetic) agent cursor to the target before acting.
-    if let point = target.point {
+    if let point = target.point, !target.deliveryContext.allowGlobalCursor {
         await AgentCursor.shared.glide(to: point, targetWindow: target.deliveryContext.windowNumber)
     }
 
@@ -195,7 +200,8 @@ private func leftClick(_ target: PointTarget, clickCount: Int) async throws -> I
     }
     let route = clickDeliveryRoute(
         hasSelectableElement: selectable != nil,
-        hasPressableElement: pressable != nil)
+        hasPressableElement: pressable != nil,
+        allowGlobalCursor: target.deliveryContext.allowGlobalCursor)
     return try await deliverSelectedClick(
         route: route,
         axSelection: {
@@ -236,7 +242,9 @@ private func leftClick(_ target: PointTarget, clickCount: Int) async throws -> I
             return InputActionOutcome(
                 note: "\(verb) \(target.description) [\(delivery.tier.rawValue)].",
                 deliveryTier: delivery.tier,
-                fallbackReasons: [.axActionUnsupported] + delivery.fallbackReasons)
+                fallbackReasons: clickFallbackReasons(
+                    deliveryReasons: delivery.fallbackReasons,
+                    allowGlobalCursor: target.deliveryContext.allowGlobalCursor))
         })
 }
 
@@ -262,7 +270,7 @@ func performRepeatedAXPress(
 
 private func rightClick(_ target: PointTarget) throws -> InputActionOutcome {
     // Tier 1: accessibility context-menu action.
-    if let element = target.element,
+    if !target.deliveryContext.allowGlobalCursor, let element = target.element,
         let menu = selfOrAncestor(of: element, supporting: "AXShowMenu")
     {
         try checkCancellationBeforeDelivery()
@@ -279,6 +287,8 @@ private func rightClick(_ target: PointTarget) throws -> InputActionOutcome {
     return InputActionOutcome(
         note: "Right-clicked \(target.description) [\(delivery.tier.rawValue)].",
         deliveryTier: delivery.tier,
-        fallbackReasons: [.axActionUnsupported] + delivery.fallbackReasons
+        fallbackReasons: clickFallbackReasons(
+            deliveryReasons: delivery.fallbackReasons,
+            allowGlobalCursor: target.deliveryContext.allowGlobalCursor)
     )
 }
